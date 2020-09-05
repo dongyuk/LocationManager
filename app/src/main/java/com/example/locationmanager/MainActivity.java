@@ -6,6 +6,12 @@ import androidx.core.app.ActivityCompat;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
+import android.location.Address;
+import android.location.Geocoder;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -19,18 +25,31 @@ import android.widget.TextView;
 
 import org.json.JSONObject;
 
+import java.io.IOException;
 import java.util.List;
+import java.util.Locale;
 
-public class MainActivity extends AppCompatActivity implements LocationListener {
+public class MainActivity extends AppCompatActivity implements LocationListener, SensorEventListener {
 
     private LocationManager locationManager;
     private List<String> listProviders;
     private TextView tvGpsEnable, tvNetworkEnable, tvPassiveEnable, tvGpsLatitude, tvGpsLongitude, tvOutput;
-    private TextView tvNetworkLatitude, tvNetworkLongitude, tvPassiveLatitude, tvPassivekLongitude;
+    private TextView tvNetworkLatitude, tvNetworkLongitude, tvPassiveLatitude, tvPassivekLongitude, tvAzimuth;
     private EditText etAddress, etPort, etRouter, etUserId;
     private String TAG = "LocationProvider";
     private Button btnShowLocation;
     private RequestHttpURLConnection requestHttpURLConnection;
+    private SensorManager sensorManager;
+    private Sensor sensorAccel,sensorMag;
+
+    float[] rotation;
+    float[] result_data;
+    float[] mag_data; //센서데이터를 저장할 배열 생성
+    float[] acc_data; //가속도데이터값이 들어갈 배열. 각도를 뽑으려면 가속도와 지자계의 값이 있어야함.
+    float azimuth;
+
+    private  Exception error;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -41,6 +60,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         tvPassiveEnable = (TextView)findViewById(R.id.tvPassiveEnable);
         tvNetworkLatitude = (TextView)findViewById(R.id.tvNetworkLatitude);
         tvNetworkLongitude = (TextView)findViewById(R.id.tvNetworkLongitude);
+        tvAzimuth = (TextView)findViewById(R.id.tvAzimuth);
 
         etAddress = (EditText)findViewById(R.id.etAddress);
         etPort = (EditText)findViewById(R.id.etPort);
@@ -50,6 +70,18 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         btnShowLocation = (Button) findViewById(R.id.btn_start);
 
         tvOutput = (TextView)findViewById(R.id.tvOutput);
+
+        rotation = new float[9];
+        result_data = new float[3];
+        mag_data = new float[3]; //센서데이터를 저장할 배열 생성
+        acc_data = new float[3]; //가속도데이터값이 들어갈 배열. 각도를 뽑으려면 가속도와 지자계의 값이 있어야함.
+
+        //센서값에 접근하려면 SensorManager과 SensorEventListener을 사용해야한다.
+        sensorManager = (SensorManager)getSystemService(Context.SENSOR_SERVICE);
+        // 가속도 센서
+        sensorAccel = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        // 자기장 센서
+        sensorMag = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
 
         locationManager = (LocationManager)getSystemService(Context.LOCATION_SERVICE);
 
@@ -68,6 +100,25 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
             }
         });
 
+    }
+
+    private void convertAddr(Context context, double lat, double lng){
+        Geocoder geocoder = new Geocoder(context, Locale.KOREA);
+        List<Address> address;
+        String getAddr = null;
+
+        try {
+            if (geocoder != null) {
+                address = geocoder.getFromLocation(lat, lng, 1);
+
+                if(address != null && address.size() > 0){
+                    getAddr = address.get(0).getAddressLine(0).toString();
+                }
+            }
+//            locationText.setText(getAddr);
+        }catch (IOException e){
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -147,6 +198,8 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
     @Override
     protected void onPause() {
         super.onPause();
+
+        sensorManager.unregisterListener(this);
         locationManager.removeUpdates(this);
     }
 
@@ -156,18 +209,45 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             return;
         }
+
+        sensorManager.registerListener(this, sensorAccel, SensorManager.SENSOR_DELAY_NORMAL);
+        sensorManager.registerListener(this, sensorMag, SensorManager.SENSOR_DELAY_NORMAL);
+
         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, this);
         locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, this);
         locationManager.requestLocationUpdates(LocationManager.PASSIVE_PROVIDER, 0, 0, this);
     }
 
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+        if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD) {  //센서가 읽어들인 값이 마그네틱필드일때
+            mag_data = event.values.clone();    //데이터를 모두 mag_data 배열에 저장
+        }
+        if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {// 가속도센서값일때
+            acc_data = event.values.clone();  //마찬가지
+        }
+
+        if (mag_data != null && acc_data != null) { //널체크
+            SensorManager.getRotationMatrix(rotation, null, acc_data, mag_data); //회전메트릭스 연산
+            SensorManager.getOrientation(rotation, result_data); //연산값으로 방향값 산출
+            result_data[0] = (float)Math.toDegrees(result_data[0]); // 방향값을 각도로 변환
+            if(result_data[0] < 0) azimuth = result_data[0] + 360; //0보다 작을경우 360을더해줌
+        }
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int i) {
+
+    }
+
     // http ========================================================================================
-    public class NetworkTask extends AsyncTask<Void, Void, String> {
+    public class NetworkTask extends AsyncTask<Void, Void, Boolean> {
 
         private String url;
         private ContentValues values;
         private double latitude, longitude;
         private boolean[] isEnable;
+        private String result;
 
         public NetworkTask(String url, ContentValues values) {
 
@@ -176,10 +256,10 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         }
 
         @Override
-        protected String doInBackground(Void... params) {
+        protected Boolean doInBackground(Void... params) {
             //권한 체크
             if (ActivityCompat.checkSelfPermission(MainActivity.this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                return null;
+                return false;
             }
                 /*
                 Location lastKnownLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
@@ -240,26 +320,29 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
             Log.d(TAG, listProviders.get(1) + '/' + String.valueOf(isEnable[1]));
             Log.d(TAG, listProviders.get(2) + '/' + String.valueOf(isEnable[2]));
 
-
             JSONObject jsonObject = new JSONObject();
             try {
                 jsonObject.accumulate("user_id", etUserId.getText().toString());
                 jsonObject.accumulate("latitude", latitude);
                 jsonObject.accumulate("longitude", longitude);
-
+                jsonObject.accumulate("azimuth", azimuth);
             } catch (Exception e) {
                 e.printStackTrace();
             }
 
-            String result =""; // 요청 결과를 저장할 변수.
-//            result = requestHttpURLConnection.request(url, jsonObject); // 해당 URL로 부터 결과물을 얻어온다.
+            try {
+                result = requestHttpURLConnection.request(url, jsonObject); // 해당 URL로 부터 결과물을 얻어온다.
+            } catch(Exception e) {
+                error = e;
+                return false;
+            }
 
-            return result;
+            return true;
         }
 
         @Override
-        protected void onPostExecute(String s) {
-            super.onPostExecute(s);
+        protected void onPostExecute(Boolean Result) {
+//            super.onPostExecute(s);
 
             tvGpsEnable.setText(": " + String.valueOf(isEnable[0]));
             tvNetworkEnable.setText(": " + String.valueOf(isEnable[1]));
@@ -267,9 +350,14 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
 
             tvNetworkLatitude.setText(":: " + Double.toString(latitude));
             tvNetworkLongitude.setText((":: " + Double.toString(longitude)));
+            tvAzimuth.setText((":: " + Float.toString(azimuth)));
 
-            //doInBackground()로 부터 리턴된 값이 onPostExecute()의 매개변수로 넘어오므로 s를 출력한다.
-            tvOutput.setText(s);
+            if (Result) {
+                //doInBackground()로 부터 리턴된 값이 onPostExecute()의 매개변수로 넘어오므로 s를 출력한다.
+                tvOutput.setText(result);
+            } else {
+                tvOutput.setText("conn error");
+            }
         }
     }
     // -----========================================================================================

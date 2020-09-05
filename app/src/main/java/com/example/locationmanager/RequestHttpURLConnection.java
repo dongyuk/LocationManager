@@ -15,7 +15,7 @@ import java.util.Map;
 
 public class RequestHttpURLConnection {
     private String errorMsg;
-    public String request(String _url, JSONObject _json){
+    public String request(String _url, JSONObject _json) throws Exception {
 
         // HttpURLConnection 참조 변수.
         HttpURLConnection urlConn = null;
@@ -37,6 +37,7 @@ public class RequestHttpURLConnection {
             urlConn = (HttpURLConnection) url.openConnection();
 
             // [2-1]. urlConn 설정.
+            urlConn.setConnectTimeout(1000);
             urlConn.setRequestMethod("POST"); // URL 요청에 대한 메소드 설정 : POST.
             urlConn.setRequestProperty("Accept", "application/json");
             urlConn.setRequestProperty("Content-type", "application/json");
@@ -86,17 +87,10 @@ public class RequestHttpURLConnection {
 
             return page;
 
-        } catch (MalformedURLException e) { // for URL.
-            e.printStackTrace();
-        } catch (IOException e) { // for openConnection().
-            e.printStackTrace();
-        } catch (Exception e) { // for openConnection().
-            e.printStackTrace();
         } finally {
             if (urlConn != null)
                 urlConn.disconnect();
         }
-        return "";
     }
 
 }
