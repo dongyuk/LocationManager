@@ -34,19 +34,22 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
     private LocationManager locationManager;
     private List<String> listProviders;
     private TextView tvGpsEnable, tvNetworkEnable, tvPassiveEnable, tvGpsLatitude, tvGpsLongitude, tvOutput;
-    private TextView tvNetworkLatitude, tvNetworkLongitude, tvPassiveLatitude, tvPassivekLongitude, tvAzimuth;
+    private TextView tvNetworkLatitude, tvNetworkLongitude, tvPassiveLatitude, tvPassivekLongitude, tvAzimuth, tvGeoCoder;
     private EditText etAddress, etPort, etRouter, etUserId;
     private String TAG = "LocationProvider";
     private Button btnShowLocation;
     private RequestHttpURLConnection requestHttpURLConnection;
     private SensorManager sensorManager;
     private Sensor sensorAccel,sensorMag;
+    private Geocoder geocoder;
 
     float[] rotation;
     float[] result_data;
     float[] mag_data; //센서데이터를 저장할 배열 생성
     float[] acc_data; //가속도데이터값이 들어갈 배열. 각도를 뽑으려면 가속도와 지자계의 값이 있어야함.
     float azimuth;
+
+    private String geoStr;
 
     private  Exception error;
 
@@ -60,6 +63,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
         tvPassiveEnable = (TextView)findViewById(R.id.tvPassiveEnable);
         tvNetworkLatitude = (TextView)findViewById(R.id.tvNetworkLatitude);
         tvNetworkLongitude = (TextView)findViewById(R.id.tvNetworkLongitude);
+        tvGeoCoder = (TextView)findViewById(R.id.tvGeoCoder);
         tvAzimuth = (TextView)findViewById(R.id.tvAzimuth);
 
         etAddress = (EditText)findViewById(R.id.etAddress);
@@ -70,6 +74,8 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
         btnShowLocation = (Button) findViewById(R.id.btn_start);
 
         tvOutput = (TextView)findViewById(R.id.tvOutput);
+
+        geocoder = new Geocoder(this, Locale.KOREA);
 
         rotation = new float[9];
         result_data = new float[3];
@@ -102,8 +108,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
 
     }
 
-    private void convertAddr(Context context, double lat, double lng){
-        Geocoder geocoder = new Geocoder(context, Locale.KOREA);
+    private String convertAddr(double lat, double lng){
         List<Address> address;
         String getAddr = null;
 
@@ -119,6 +124,8 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
         }catch (IOException e){
             e.printStackTrace();
         }
+
+        return getAddr;
     }
 
     @Override
@@ -320,12 +327,15 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
             Log.d(TAG, listProviders.get(1) + '/' + String.valueOf(isEnable[1]));
             Log.d(TAG, listProviders.get(2) + '/' + String.valueOf(isEnable[2]));
 
+            geoStr = convertAddr(latitude, longitude);
+
             JSONObject jsonObject = new JSONObject();
             try {
                 jsonObject.accumulate("user_id", etUserId.getText().toString());
                 jsonObject.accumulate("latitude", latitude);
                 jsonObject.accumulate("longitude", longitude);
                 jsonObject.accumulate("azimuth", azimuth);
+                jsonObject.accumulate("addr", geoStr);
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -350,6 +360,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
 
             tvNetworkLatitude.setText(":: " + Double.toString(latitude));
             tvNetworkLongitude.setText((":: " + Double.toString(longitude)));
+            tvGeoCoder.setText(": " + geoStr);
             tvAzimuth.setText((":: " + Float.toString(azimuth)));
 
             if (Result) {
