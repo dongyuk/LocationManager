@@ -111,6 +111,33 @@
             android:text=""
             android:textSize="15dp"
             />
+
+        <TextView
+            android:id="@+id/tvTimeLabel"
+            android:layout_gravity="right"
+            android:text="timestamps "
+            android:textSize="15dp"
+            />
+
+        <TextView
+            android:id="@+id/tvTime"
+            android:text=""
+            android:textSize="15dp"
+            />
+
+        <TextView
+            android:id="@+id/tvTimeLabel2"
+            android:layout_gravity="right"
+            android:text="timestamps_2 "
+            android:textSize="15dp"
+            />
+
+        <TextView
+            android:id="@+id/tvTime2"
+            android:text=""
+            android:textSize="15dp"
+            />
+
     </GridLayout>
 
     <GridLayout

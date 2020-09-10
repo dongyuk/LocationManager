@@ -26,6 +26,9 @@ import android.widget.TextView;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.security.Timestamp;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
@@ -34,7 +37,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
     private LocationManager locationManager;
     private List<String> listProviders;
     private TextView tvGpsEnable, tvNetworkEnable, tvPassiveEnable, tvGpsLatitude, tvGpsLongitude, tvOutput;
-    private TextView tvNetworkLatitude, tvNetworkLongitude, tvPassiveLatitude, tvPassivekLongitude, tvAzimuth, tvGeoCoder;
+    private TextView tvNetworkLatitude, tvNetworkLongitude, tvPassiveLatitude, tvPassivekLongitude, tvAzimuth, tvGeoCoder, tvTime, tvTime2;
     private EditText etAddress, etPort, etRouter, etUserId;
     private String TAG = "LocationProvider";
     private Button btnShowLocation;
@@ -50,6 +53,9 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
     float azimuth;
 
     private String geoStr;
+    private long timestamp;
+    private String timestamp2;
+    private Date date;
 
     private  Exception error;
 
@@ -65,6 +71,8 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
         tvNetworkLongitude = (TextView)findViewById(R.id.tvNetworkLongitude);
         tvGeoCoder = (TextView)findViewById(R.id.tvGeoCoder);
         tvAzimuth = (TextView)findViewById(R.id.tvAzimuth);
+        tvTime = (TextView)findViewById(R.id.tvTime);
+        tvTime2 = (TextView)findViewById(R.id.tvTime2);
 
         etAddress = (EditText)findViewById(R.id.etAddress);
         etPort = (EditText)findViewById(R.id.etPort);
@@ -247,6 +255,20 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
 
     }
 
+    public String getCurrentTimeStamp(Date date){
+        try {
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMddhhmmss");
+            String currentDateTime = dateFormat.format(date); // Find todays date
+
+            return currentDateTime;
+        } catch (Exception e) {
+            e.printStackTrace();
+
+            return null;
+        }
+    }
+
+
     // http ========================================================================================
     public class NetworkTask extends AsyncTask<Void, Void, Boolean> {
 
@@ -336,6 +358,12 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
                 jsonObject.accumulate("longitude", longitude);
                 jsonObject.accumulate("azimuth", azimuth);
                 jsonObject.accumulate("addr", geoStr);
+
+                date = new Date();
+                timestamp = date.getTime();
+                timestamp2 = getCurrentTimeStamp(date);
+                jsonObject.accumulate("timestamps", timestamp);
+
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -362,6 +390,8 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
             tvNetworkLongitude.setText((":: " + Double.toString(longitude)));
             tvGeoCoder.setText(": " + geoStr);
             tvAzimuth.setText((":: " + Float.toString(azimuth)));
+            tvTime.setText(": " + Long.toString(timestamp));
+            tvTime2.setText(": " + timestamp2);
 
             if (Result) {
                 //doInBackground()로 부터 리턴된 값이 onPostExecute()의 매개변수로 넘어오므로 s를 출력한다.
