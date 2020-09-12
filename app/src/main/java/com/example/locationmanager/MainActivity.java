@@ -21,6 +21,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.view.ViewDebug;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
@@ -37,16 +38,18 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.TimeZone;
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class MainActivity extends AppCompatActivity implements LocationListener, SensorEventListener {
 
     private LocationManager locationManager;
     private List<String> listProviders;
-    private TextView tvGpsEnable, tvNetworkEnable, tvPassiveEnable, tvGpsLatitude, tvGpsLongitude, tvOutput;
-    private TextView tvNetworkLatitude, tvNetworkLongitude, tvPassiveLatitude, tvPassivekLongitude, tvAzimuth, tvGeoCoder, tvLongLocal, tvStrLocal, tvLongUTC, tvStrUTC;
-    private EditText etAddress, etPort, etRouter, etUserId;
+    private TextView tvGpsEnable, tvNetworkEnable, tvPassiveEnable, tvOutput;
+    private TextView tvNetworkLatitude, tvNetworkLongitude, tvAzimuth, tvGeoCoder, tvLongLocal, tvStrLocal, tvLongUTC, tvStrUTC, tvInterval;
+    private EditText etAddress, etPort, etRouter, etUserId, etInterval;
     private String TAG = "LocationProvider";
-    private Button btnShowLocation;
+    private Button btnStart, btnStop;
     private RequestHttpURLConnection requestHttpURLConnection;
     private SensorManager sensorManager;
     private Sensor sensorAccel,sensorMag;
@@ -58,12 +61,12 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
     float[] acc_data; //가속도데이터값이 들어갈 배열. 각도를 뽑으려면 가속도와 지자계의 값이 있어야함.
     float azimuth;
 
-    private String geoStr;
-    private long longLocal, longUTC;
-    private String strLocal, strUTC;
-    private Date date;
+    Boolean sendFlag;
 
-    private  Exception error;
+    int sec;
+
+    String url;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -81,13 +84,16 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
         tvStrLocal = (TextView)findViewById(R.id.tvStrLocal);
         tvLongUTC = (TextView)findViewById(R.id.tvLongUTC);
         tvStrUTC = (TextView)findViewById(R.id.tvStrUTC);
+        tvInterval = (TextView)findViewById(R.id.tvInterval);
 
         etAddress = (EditText)findViewById(R.id.etAddress);
         etPort = (EditText)findViewById(R.id.etPort);
         etRouter = (EditText)findViewById(R.id.etRouter);
         etUserId = (EditText)findViewById(R.id.etUserId);
+        etInterval = (EditText)findViewById(R.id.etInterval);
 
-        btnShowLocation = (Button) findViewById(R.id.btn_start);
+        btnStart = (Button) findViewById(R.id.btn_start);
+        btnStop = (Button) findViewById(R.id.btn_stop);
 
         tvOutput = (TextView)findViewById(R.id.tvOutput);
 
@@ -109,18 +115,34 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
 
         requestHttpURLConnection = new RequestHttpURLConnection();
 
-        btnShowLocation.setOnClickListener(new View.OnClickListener() {
+        // URL 설정.
+        url = "http://" + etAddress.getText().toString() + ":" + etPort.getText().toString() + '/' + etRouter.getText().toString();
+//                        "http://172.30.1.59:3000/infos/";
+
+        sec = Integer.parseInt(etInterval.getText().toString()) * 1000;
+
+        btnStart.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                // URL 설정.
-                String url = "http://" + etAddress.getText().toString() + ":" + etPort.getText().toString() + '/' + etRouter.getText().toString();
-//                        "http://172.30.1.59:3000/infos/";
+                sendFlag = true;
+                btnStart.setEnabled(false);
+                btnStart.setEnabled(true);
 
                 // AsyncTask를 통해 HttpURLConnection 수행.
                 NetworkTask networkTask = new NetworkTask(url, null);
                 networkTask.execute();
             }
         });
+
+        btnStop.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                sendFlag = false;
+                btnStart.setEnabled(true);
+                btnStart.setEnabled(false);
+            }
+        });
+
 
     }
 
@@ -265,7 +287,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
 
     public String getCurrentTimeStamp(long timestamp){
         try {
-            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
             String currentDateTime = dateFormat.format(new Date(timestamp)); // Find todays date
 
             return currentDateTime;
@@ -282,6 +304,9 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
         private String url;
         private ContentValues values;
         private double latitude, longitude;
+        private String geoStr;
+        private long longLocal, longUTC;
+        private String strLocal, strUTC;
         private boolean[] isEnable;
         private String result;
 
@@ -291,8 +316,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
             this.values = values;
         }
 
-        @Override
-        protected Boolean doInBackground(Void... params) {
+        public Boolean SendData() {
             //권한 체크
             if (ActivityCompat.checkSelfPermission(MainActivity.this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                 return false;
@@ -366,17 +390,18 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
                 jsonObject.accumulate("azimuth", azimuth);
                 jsonObject.accumulate("addr", geoStr);
 
+                Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("Asia/Seoul"));
+                long millis = calendar.getTimeInMillis();
+
+                longLocal = millis;
                 TimeZone.setDefault(TimeZone.getTimeZone("Asia/Seoul"));
-                Calendar localCalendar = Calendar.getInstance(TimeZone.getTimeZone("Asia/Seoul"));
-                longLocal = localCalendar.getTimeInMillis();
-                strLocal = getCurrentTimeStamp(longLocal);
+                strLocal = getCurrentTimeStamp(millis);
 
+                longUTC = millis;
                 TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
-                Calendar UTCcalendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
-                longUTC = UTCcalendar.getTimeInMillis();
-                strUTC = getCurrentTimeStamp(longUTC);
+                strUTC = getCurrentTimeStamp(millis);
 
-                jsonObject.accumulate("timestamps", longUTC);
+                jsonObject.accumulate("timestamps", millis);
 
             } catch (Exception e) {
                 e.printStackTrace();
@@ -385,12 +410,30 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
             try {
                 result = requestHttpURLConnection.request(url, jsonObject); // 해당 URL로 부터 결과물을 얻어온다.
             } catch(Exception e) {
-                error = e;
                 return false;
             }
-
             return true;
         }
+
+
+        @Override
+        protected Boolean doInBackground(Void... params) {
+            while(sendFlag) {
+                try {
+                    if (!SendData()) {
+                        sendFlag = false;
+                        return false;
+                    }
+
+                    Thread.sleep(sec);
+                } catch (InterruptedException e) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+
 
         @Override
         protected void onPostExecute(Boolean Result) {
