@@ -6,25 +6,15 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
-    <TextView
-        android:id="@+id/tvTitle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Android Data Send"
-        android:layout_marginTop="20dp"
-        android:textSize="30dp"
-        app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
 
     <GridLayout
         android:id="@+id/glTop"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginLeft="10dp"
+        android:layout_marginTop="20dp"
         android:layout_marginRight="10dp"
         android:columnCount="2"
-        app:layout_constraintTop_toBottomOf="@+id/tvTitle">
+        app:layout_constraintTop_toTopOf="parent" >
 
         <TextView
             android:id="@+id/tvGpsEnableLabel"
@@ -244,6 +234,18 @@
         <EditText
             android:id="@+id/etInterval"
             android:text="5"
+            android:textSize="15dp"
+            />
+
+        <TextView
+            android:id="@+id/tvCntLabel"
+            android:text="Send Data Count"
+            android:textSize="15dp"
+            />
+
+        <TextView
+            android:id="@+id/tvCnt"
+            android:text=""
             android:textSize="15dp"
             />
 

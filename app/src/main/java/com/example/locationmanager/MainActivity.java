@@ -46,7 +46,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
     private LocationManager locationManager;
     private List<String> listProviders;
     private TextView tvGpsEnable, tvNetworkEnable, tvPassiveEnable, tvOutput;
-    private TextView tvNetworkLatitude, tvNetworkLongitude, tvAzimuth, tvGeoCoder, tvLongLocal, tvStrLocal, tvLongUTC, tvStrUTC, tvInterval;
+    private TextView tvNetworkLatitude, tvNetworkLongitude, tvAzimuth, tvGeoCoder, tvLongLocal, tvStrLocal, tvLongUTC, tvStrUTC, tvInterval, tvCnt;
     private EditText etAddress, etPort, etRouter, etUserId, etInterval;
     private String TAG = "LocationProvider";
     private Button btnStart, btnStop;
@@ -54,6 +54,8 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
     private SensorManager sensorManager;
     private Sensor sensorAccel,sensorMag;
     private Geocoder geocoder;
+
+    NetworkTask networkTask;
 
     float[] rotation;
     float[] result_data;
@@ -85,6 +87,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
         tvLongUTC = (TextView)findViewById(R.id.tvLongUTC);
         tvStrUTC = (TextView)findViewById(R.id.tvStrUTC);
         tvInterval = (TextView)findViewById(R.id.tvInterval);
+        tvCnt = (TextView)findViewById(R.id.tvCnt);
 
         etAddress = (EditText)findViewById(R.id.etAddress);
         etPort = (EditText)findViewById(R.id.etPort);
@@ -115,22 +118,24 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
 
         requestHttpURLConnection = new RequestHttpURLConnection();
 
+
         // URL 설정.
         url = "http://" + etAddress.getText().toString() + ":" + etPort.getText().toString() + '/' + etRouter.getText().toString();
 //                        "http://172.30.1.59:3000/infos/";
-
-        sec = Integer.parseInt(etInterval.getText().toString()) * 1000;
 
         btnStart.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 sendFlag = true;
                 btnStart.setEnabled(false);
-                btnStart.setEnabled(true);
+                btnStop.setEnabled(true);
+
+                sec = Integer.parseInt(etInterval.getText().toString()) * 1000;
 
                 // AsyncTask를 통해 HttpURLConnection 수행.
-                NetworkTask networkTask = new NetworkTask(url, null);
+                networkTask = new NetworkTask(url, null);
                 networkTask.execute();
+
             }
         });
 
@@ -139,7 +144,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
             public void onClick(View view) {
                 sendFlag = false;
                 btnStart.setEnabled(true);
-                btnStart.setEnabled(false);
+                btnStop.setEnabled(false);
             }
         });
 
@@ -251,6 +256,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
     @Override
     protected void onResume() {
         super.onResume();
+
         if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             return;
         }
@@ -261,6 +267,18 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, this);
         locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, this);
         locationManager.requestLocationUpdates(LocationManager.PASSIVE_PROVIDER, 0, 0, this);
+
+
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+
+        networkTask.cancel(true);
+
+        sensorManager.unregisterListener(this);
+        locationManager.removeUpdates(this);
     }
 
     @Override
@@ -299,7 +317,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
     }
 
     // http ========================================================================================
-    public class NetworkTask extends AsyncTask<Void, Void, Boolean> {
+    public class NetworkTask extends AsyncTask<Void, Boolean, Boolean> {
 
         private String url;
         private ContentValues values;
@@ -309,6 +327,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
         private String strLocal, strUTC;
         private boolean[] isEnable;
         private String result;
+        private int sendDataCnt;
 
         public NetworkTask(String url, ContentValues values) {
 
@@ -418,14 +437,22 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
 
         @Override
         protected Boolean doInBackground(Void... params) {
+            sendDataCnt = 0;
+
             while(sendFlag) {
+                if (isCancelled()) {
+                    break;
+                }
+
                 try {
-                    if (!SendData()) {
+                    if (SendData()) {
+                        sendDataCnt++;
+                        publishProgress(true);
+                        Thread.sleep(sec);
+                    } else {
                         sendFlag = false;
                         return false;
                     }
-
-                    Thread.sleep(sec);
                 } catch (InterruptedException e) {
                     return false;
                 }
@@ -433,12 +460,9 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
             return true;
         }
 
-
-
         @Override
-        protected void onPostExecute(Boolean Result) {
-//            super.onPostExecute(s);
-
+        protected void onProgressUpdate(Boolean ... values) {
+//            super.onProgressUpdate(values);
             tvGpsEnable.setText(": " + String.valueOf(isEnable[0]));
             tvNetworkEnable.setText(": " + String.valueOf(isEnable[1]));
             tvPassiveEnable.setText(": " + String.valueOf(isEnable[2]));
@@ -452,12 +476,35 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
             tvLongUTC.setText(": " + Long.toString(longUTC));
             tvStrUTC.setText(": " + strUTC);
 
-            if (Result) {
-                //doInBackground()로 부터 리턴된 값이 onPostExecute()의 매개변수로 넘어오므로 s를 출력한다.
+            tvCnt.setText(": " + Integer.toString(sendDataCnt));
+
+
+            if (values[0]) {
                 tvOutput.setText(result);
             } else {
                 tvOutput.setText("conn error");
             }
+        }
+
+        @Override
+        protected void onPostExecute(Boolean Result) {
+//            super.onPostExecute(s);
+
+            if (Result) {
+                //doInBackground()로 부터 리턴된 값이 onPostExecute()의 매개변수로 넘어오므로 s를 출력한다.
+                tvOutput.setText("전송 중지");
+            } else {
+                tvOutput.setText("오류 중지");
+            }
+
+            sendFlag = false;
+            btnStart.setEnabled(true);
+            btnStop.setEnabled(false);
+        }
+
+        @Override
+        protected void onCancelled() {
+            super.onCancelled();
         }
     }
     // -----========================================================================================
