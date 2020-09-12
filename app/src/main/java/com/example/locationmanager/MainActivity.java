@@ -1,5 +1,6 @@
 package com.example.locationmanager;
 
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 
@@ -16,6 +17,7 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -28,16 +30,20 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.security.Timestamp;
 import java.text.SimpleDateFormat;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.TimeZone;
 
 public class MainActivity extends AppCompatActivity implements LocationListener, SensorEventListener {
 
     private LocationManager locationManager;
     private List<String> listProviders;
     private TextView tvGpsEnable, tvNetworkEnable, tvPassiveEnable, tvGpsLatitude, tvGpsLongitude, tvOutput;
-    private TextView tvNetworkLatitude, tvNetworkLongitude, tvPassiveLatitude, tvPassivekLongitude, tvAzimuth, tvGeoCoder, tvTime, tvTime2;
+    private TextView tvNetworkLatitude, tvNetworkLongitude, tvPassiveLatitude, tvPassivekLongitude, tvAzimuth, tvGeoCoder, tvLongLocal, tvStrLocal, tvLongUTC, tvStrUTC;
     private EditText etAddress, etPort, etRouter, etUserId;
     private String TAG = "LocationProvider";
     private Button btnShowLocation;
@@ -53,8 +59,8 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
     float azimuth;
 
     private String geoStr;
-    private long timestamp;
-    private String timestamp2;
+    private long longLocal, longUTC;
+    private String strLocal, strUTC;
     private Date date;
 
     private  Exception error;
@@ -71,8 +77,10 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
         tvNetworkLongitude = (TextView)findViewById(R.id.tvNetworkLongitude);
         tvGeoCoder = (TextView)findViewById(R.id.tvGeoCoder);
         tvAzimuth = (TextView)findViewById(R.id.tvAzimuth);
-        tvTime = (TextView)findViewById(R.id.tvTime);
-        tvTime2 = (TextView)findViewById(R.id.tvTime2);
+        tvLongLocal = (TextView)findViewById(R.id.tvLongLocal);
+        tvStrLocal = (TextView)findViewById(R.id.tvStrLocal);
+        tvLongUTC = (TextView)findViewById(R.id.tvLongUTC);
+        tvStrUTC = (TextView)findViewById(R.id.tvStrUTC);
 
         etAddress = (EditText)findViewById(R.id.etAddress);
         etPort = (EditText)findViewById(R.id.etPort);
@@ -255,10 +263,10 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
 
     }
 
-    public String getCurrentTimeStamp(Date date){
+    public String getCurrentTimeStamp(long timestamp){
         try {
-            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMddhhmmss");
-            String currentDateTime = dateFormat.format(date); // Find todays date
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
+            String currentDateTime = dateFormat.format(new Date(timestamp)); // Find todays date
 
             return currentDateTime;
         } catch (Exception e) {
@@ -267,7 +275,6 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
             return null;
         }
     }
-
 
     // http ========================================================================================
     public class NetworkTask extends AsyncTask<Void, Void, Boolean> {
@@ -359,10 +366,17 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
                 jsonObject.accumulate("azimuth", azimuth);
                 jsonObject.accumulate("addr", geoStr);
 
-                date = new Date();
-                timestamp = date.getTime();
-                timestamp2 = getCurrentTimeStamp(date);
-                jsonObject.accumulate("timestamps", timestamp);
+                TimeZone.setDefault(TimeZone.getTimeZone("Asia/Seoul"));
+                Calendar localCalendar = Calendar.getInstance(TimeZone.getTimeZone("Asia/Seoul"));
+                longLocal = localCalendar.getTimeInMillis();
+                strLocal = getCurrentTimeStamp(longLocal);
+
+                TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
+                Calendar UTCcalendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+                longUTC = UTCcalendar.getTimeInMillis();
+                strUTC = getCurrentTimeStamp(longUTC);
+
+                jsonObject.accumulate("timestamps", longUTC);
 
             } catch (Exception e) {
                 e.printStackTrace();
@@ -390,8 +404,10 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
             tvNetworkLongitude.setText((":: " + Double.toString(longitude)));
             tvGeoCoder.setText(": " + geoStr);
             tvAzimuth.setText((":: " + Float.toString(azimuth)));
-            tvTime.setText(": " + Long.toString(timestamp));
-            tvTime2.setText(": " + timestamp2);
+            tvLongLocal.setText(": " + Long.toString(longLocal));
+            tvStrLocal.setText(": " + strLocal);
+            tvLongUTC.setText(": " + Long.toString(longUTC));
+            tvStrUTC.setText(": " + strUTC);
 
             if (Result) {
                 //doInBackground()로 부터 리턴된 값이 onPostExecute()의 매개변수로 넘어오므로 s를 출력한다.

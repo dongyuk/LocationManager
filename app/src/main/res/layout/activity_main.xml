@@ -10,7 +10,7 @@
         android:id="@+id/tvTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Android Location Test"
+        android:text="Android Data Send"
         android:layout_marginTop="20dp"
         android:textSize="30dp"
         app:layout_constraintLeft_toLeftOf="parent"
@@ -113,30 +113,57 @@
             />
 
         <TextView
-            android:id="@+id/tvTimeLabel"
+            android:id="@+id/tvLongLocalLabel"
             android:layout_gravity="right"
-            android:text="timestamps "
+            android:text="long LOCAL "
             android:textSize="15dp"
             />
 
         <TextView
-            android:id="@+id/tvTime"
+            android:id="@+id/tvLongLocal"
             android:text=""
             android:textSize="15dp"
             />
 
         <TextView
-            android:id="@+id/tvTimeLabel2"
+            android:id="@+id/tvStrLocalLabel"
             android:layout_gravity="right"
-            android:text="timestamps_2 "
+            android:text="format LOCAL "
             android:textSize="15dp"
             />
 
         <TextView
-            android:id="@+id/tvTime2"
+            android:id="@+id/tvStrLocal"
             android:text=""
             android:textSize="15dp"
             />
+
+        <TextView
+            android:id="@+id/tvLongUTCLabel"
+            android:layout_gravity="right"
+            android:text="long UTC "
+            android:textSize="15dp"
+            />
+
+        <TextView
+            android:id="@+id/tvLongUTC"
+            android:text=""
+            android:textSize="15dp"
+            />
+
+        <TextView
+            android:id="@+id/tvStrUTCLabel"
+            android:layout_gravity="right"
+            android:text="format UTC "
+            android:textSize="15dp"
+            />
+
+        <TextView
+            android:id="@+id/tvStrUTC"
+            android:text=""
+            android:textSize="15dp"
+            />
+
 
     </GridLayout>
 
